@@ -17,6 +17,7 @@
 - 自动处理图片、贴纸（静态/动态贴纸会有提示）
 - 输出文件与 `result.json` 保持在同一目录
 - 纯 Python 实现，零依赖，跨平台
+- **可选分卷功能**：支持大文件自动分卷，避免 Markdown 阅读器卡顿
 
 ---
 
@@ -35,17 +36,26 @@ cd telegram-json2md
 
 4. **执行如下命令**
 
+- **默认（不分卷，适合 Obsidian 等强大编辑器）：**
+
 ```bash
 python "D:\Download\Telegram Desktop\ChatExport_2025-05-26 (5)\json2md.py" result.json
+```
+
+- **启用分卷（每卷最多4000条，适合 Typora 等对大文件不友好的编辑器）：**
+
+```bash
+python "D:\Download\Telegram Desktop\ChatExport_2025-05-26 (5)\json2md.py" result.json --split
 ```
 
 - 你也可以在任意目录下指定 `result.json` 的完整路径：
 
 ```bash
-python 路径/json2md.py 路径/某频道/result.json
+python 路径/json2md.py 路径/某频道/result.json --split
 ```
 
 5. **脚本会自动在 `result.json` 同目录下生成以频道标题命名的 Markdown 文件**
+   - 分卷时，文件名如 `频道名_1.md`、`频道名_2.md` ...
 
 ---
 
@@ -61,12 +71,12 @@ python 路径/json2md.py 路径/某频道/result.json
   ```
 - 运行脚本（示例）：
   ```bash
-  python 路径/json2md.py 路径/某频道/result.json
+  python 路径/json2md.py 路径/某频道/result.json --split
   ```
 - 查看/编辑生成的 Markdown 文件：
   ```bash
-  code 路径/某频道/频道名.md  # VSCode
-  notepad 路径/某频道/频道名.md  # 记事本
+  code 路径/某频道/频道名_1.md  # VSCode
+  notepad 路径/某频道/频道名_1.md  # 记事本
   ```
 
 ---
@@ -78,6 +88,16 @@ python 路径/json2md.py 路径/某频道/result.json
 - 若有广告或无用内容，建议后期用文本编辑器批量删除。
 - 文件名会自动去除特殊字符，空格会变为下划线。
 - 静态贴纸、图片会自动插入，动态贴纸（.tgs）会有文本提示。
+- **分卷功能可选，默认关闭。开启分卷时每卷最多4000条消息。**
+- **分卷时如发现ID不连贯属于正常现象，可能是部分消息因过期或违规被删除，导致ID缺失。**
+
+---
+
+## 💡 为什么 Obsidian 不会卡，而 Typora 会卡？
+
+- **Obsidian** 采用"分块渲染"和"延迟渲染"技术，只渲染当前可见区域的内容，即使 Markdown 文件非常大（上万条消息），也能流畅浏览和检索。
+- **Typora** 则会一次性将整个 Markdown 文件加载并渲染成 HTML，内容过多时（如几千条消息）会占用大量内存，导致卡顿甚至崩溃。
+- 因此，推荐用 Obsidian 管理和检索大体量 Markdown 文件。如果需要用 Typora 或网页端阅读，建议开启分卷功能。
 
 ---
 

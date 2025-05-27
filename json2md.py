@@ -52,17 +52,18 @@ def message_to_md(msg):
     return md
 
 # 生成安全的文件名
-def safe_filename(title):
-    # 替换非法字符为下划线
+def safe_filename(title, idx=None):
     name = re.sub(r'[\\/:*?"<>|]', '_', title)
     name = name.replace(' ', '_')
+    if idx is not None:
+        return f'{name}_{idx}.md'
     return name + '.md'
 
-# 读取已存在的消息ID
+# 读取已存在的消息ID（支持分卷）
 def get_existing_ids(md_filename):
-    if not os.path.exists(md_filename):
-        return set()
     ids = set()
+    if not os.path.exists(md_filename):
+        return ids
     with open(md_filename, 'r', encoding='utf-8') as f:
         for line in f:
             if line.startswith('#### 消息ID:'):
@@ -75,29 +76,59 @@ def get_existing_ids(md_filename):
     return ids
 
 def main():
-    # 支持命令行参数传入json路径
-    if len(sys.argv) > 1:
-        json_path = sys.argv[1]
-    else:
-        json_path = 'result.json'
+    # 支持命令行参数传入json路径和可选分卷参数
+    split = False
+    json_path = 'result.json'
+    for arg in sys.argv[1:]:
+        if arg == '--split':
+            split = True
+        else:
+            json_path = arg
     data = load_json(json_path)
     messages = data.get('messages', [])
     if not messages:
         print('没有消息可处理')
         return
-    # 获取文件名
     title = messages[0].get('title', 'result')
-    md_filename = safe_filename(title)
-    # 输出到json所在目录
-    out_path = os.path.join(os.path.dirname(json_path), md_filename)
-    # 获取已存在的消息ID
-    existing_ids = get_existing_ids(out_path)
-    # 追加写入新消息
-    with open(out_path, 'a', encoding='utf-8') as f:
+    out_dir = os.path.dirname(json_path)
+    if split:
+        max_per_file = 4000
+        # 先统计所有分卷文件名
+        split_files = {}
         for msg in messages:
             msg_id = msg.get('id')
-            if msg_id not in existing_ids:
-                f.write(message_to_md(msg))
+            idx = msg_id // max_per_file + 1
+            md_file = os.path.join(out_dir, safe_filename(title, idx))
+            if md_file not in split_files:
+                split_files[md_file] = set()
+        # 读取每个分卷已存在的ID
+        for md_file in split_files:
+            split_files[md_file] = get_existing_ids(md_file)
+        # 按ID分布写入对应分卷
+        file_handles = {}
+        try:
+            for msg in messages:
+                msg_id = msg.get('id')
+                idx = msg_id // max_per_file + 1
+                md_file = os.path.join(out_dir, safe_filename(title, idx))
+                if msg_id in split_files[md_file]:
+                    continue
+                if md_file not in file_handles:
+                    file_handles[md_file] = open(md_file, 'a', encoding='utf-8')
+                file_handles[md_file].write(message_to_md(msg))
+                split_files[md_file].add(msg_id)
+        finally:
+            for f in file_handles.values():
+                f.close()
+    else:
+        md_filename = safe_filename(title)
+        out_path = os.path.join(out_dir, md_filename)
+        existing_ids = get_existing_ids(out_path)
+        with open(out_path, 'a', encoding='utf-8') as f:
+            for msg in messages:
+                msg_id = msg.get('id')
+                if msg_id not in existing_ids:
+                    f.write(message_to_md(msg))
 
 if __name__ == '__main__':
     main() 
